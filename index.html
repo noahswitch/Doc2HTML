@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doc2HTML | Convert Visual Documents into Clean HTML Instantly</title>
+    <meta name="description" content="AI-Powered Document Conversion. Upload screenshots, PDFs, scans, or visual text documents and instantly generate clean, editable HTML.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        },
+                        dark: {
+                            900: '#050505',
+                            800: '#0a0a0a',
+                            700: '#121212',
+                            600: '#1a1a1a',
+                        }
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'scan': 'scan 3s ease-in-out infinite',
+                        'fade-in-up': 'fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        scan: {
+                            '0%': { top: '0', opacity: '0' },
+                            '10%': { opacity: '1' },
+                            '90%': { opacity: '1' },
+                            '100%': { top: '100%', opacity: '0' },
+                        },
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(40px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        ::selection {
+            background-color: rgba(56, 189, 248, 0.3);
+            color: #fff;
+        }
+
+        /* Glassmorphism utilities */
+        .glass {
+            background: rgba(18, 18, 18, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: linear-gradient(145deg, rgba(26, 26, 26, 0.8) 0%, rgba(10, 10, 10, 0.8) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.03), transparent);
+            transform: skewX(-20deg);
+            transition: 0.5s;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 15px 40px -10px rgba(56, 189, 248, 0.2);
+        }
+
+        .glass-card:hover::before {
+            left: 150%;
+        }
+
+        /* Typography Gradients */
+        .text-gradient {
+            background: linear-gradient(to right bottom, #ffffff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .text-gradient-brand {
+            background: linear-gradient(to right, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            background-size: 200% auto;
+            animation: gradientMove 4s linear infinite;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        /* Background Effects */
+        .bg-grid {
+            position: absolute;
+            inset: 0;
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+            -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+            z-index: -1;
+        }
+
+        .mouse-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, rgba(0, 0, 0, 0) 60%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            transform: translate(-50%, -50%);
+            transition: left 0.2s ease-out, top 0.2s ease-out;
+        }
+
+        /* Scroll Reveal */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Syntax Highlighting Mock */
+        .token.tag { color: #f472b6; }
+        .token.attr { color: #38bdf8; }
+        .token.string { color: #a7f3d0; }
+        .token.punct { color: #9ca3af; }
+
+        /* Loader Overlay */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: #050505;
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(56, 189, 248, 0.3);
+            border-radius: 50%;
+            border-top-color: #38bdf8;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #374151;
+        }
+
+        .parallax-layer {
+            will-change: transform;
+        }
+    </style>
+</head>
+<body class="relative min-h-screen font-sans antialiased selection:bg-brand-500/30">
+
+    <!-- Loading Screen -->
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Mouse Glow Effect -->
+    <div class="mouse-glow hidden md:block" id="mouseGlow"></div>
+
+    <!-- Background Elements -->
+    <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+        <div class="bg-grid"></div>
+        
+        <!-- Animated Blobs -->
+        <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-brand-600/20 rounded-full mix-blend-screen filter blur-[100px] opacity-50 animate-blob"></div>
+        <div class="absolute top-[20%] right-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full mix-blend-screen filter blur-[120px] opacity-40 animate-blob animation-delay-2000"></div>
+        <div class="absolute bottom-[-20%] left-[20%] w-[600px] h-[600px] bg-brand-900/30 rounded-full mix-blend-screen filter blur-[150px] opacity-40 animate-blob animation-delay-4000"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 transition-all duration-300 glass border-b-0 border-white/5" id="navbar">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-400 to-purple-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-white">Doc2<span class="text-brand-400">HTML</span></span>
+            </div>
+            
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
+                <a href="#features" class="hover:text-white transition-colors">Features</a>
+                <a href="#demo" class="hover:text-white transition-colors">How it works</a>
+                <a href="#testimonials" class="hover:text-white transition-colors">Testimonials</a>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <a href="#" class="hidden md:block text-sm font-medium text-gray-300 hover:text-white transition-colors">Log in</a>
+                <a href="#" class="px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)]">
+                    Get Access
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <main class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-6 relative z-10">
+            <div class="flex flex-col lg:flex-row items-center gap-16 lg:gap-8">
+                
+                <!-- Hero Left: Content -->
+                <div class="flex-1 text-center lg:text-left parallax-layer" data-speed="0.05">
+                    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand-500/30 bg-brand-500/10 mb-8 animate-fade-in-up" style="animation-delay: 0.1s;">
+                        <span class="flex h-2 w-2 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+                        </span>
+                        <span class="text-xs font-medium text-brand-300 tracking-wide uppercase">AI-Powered Document Conversion</span>
+                    </div>
+                    
+                    <h1 class="text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6 animate-fade-in-up" style="animation-delay: 0.2s;">
+                        Convert Visual Documents Into <br class="hidden lg:block"/>
+                        <span class="text-gradient-brand">Clean HTML Instantly</span>
+                    </h1>
+                    
+                    <p class="text-lg lg:text-xl text-gray-400 mb-10 max-w-2xl mx-auto lg:mx-0 leading-relaxed animate-fade-in-up" style="animation-delay: 0.3s;">
+                        Upload screenshots, PDFs, scans, or visual text documents and instantly generate clean, editable HTML. Refine markup, optimize structure, and export production-ready code in seconds.
+                    </p>
+                    
+                    <div class="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start animate-fade-in-up" style="animation-delay: 0.4s;">
+                        <button class="w-full sm:w-auto px-8 py-4 rounded-full bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold text-lg hover:shadow-[0_0_30px_rgba(14,165,233,0.4)] transition-all duration-300 hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group">
+                            Start Converting Free
+                            <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                        </button>
+                        <button class="w-full sm:w-auto px-8 py-4 rounded-full glass border border-gray-700 text-white font-semibold text-lg hover:bg-white/5 transition-all duration-300 flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                            Watch Demo
+                        </button>
+                    </div>
+                    
+                    <div class="mt-12 flex items-center justify-center lg:justify-start gap-4 text-sm text-gray-500 animate-fade-in-up" style="animation-delay: 0.5s;">
+                        <div class="flex -space-x-2">
+                            <img class="w-8 h-8 rounded-full border-2 border-dark-900" src="https://i.pravatar.cc/100?img=1" alt="User">
+                            <img class="w-8 h-8 rounded-full border-2 border-dark-900" src="https://i.pravatar.cc/100?img=2" alt="User">
+                            <img class="w-8 h-8 rounded-full border-2 border-dark-900" src="https://i.pravatar.cc/100?img=3" alt="User">
+                        </div>
+                        <p>Trusted by <span class="text-white font-medium">10,000+</span> developers</p>
+                    </div>
+                </div>
+
+                <!-- Hero Right: Mockup Showcase -->
+                <div class="flex-1 w-full max-w-2xl parallax-layer animate-fade-in-up" data-speed="-0.03" style="animation-delay: 0.4s;">
+                    <div class="relative w-full aspect-[4/3] rounded-2xl glass border border-white/10 shadow-2xl overflow-hidden group">
+                        <!-- Mac OS Header -->
+                        <div class="h-10 border-b border-white/5 bg-white/5 flex items-center px-4 gap-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                            <div class="flex-1 text-center text-xs text-gray-500 font-mono">app.doc2html.io</div>
+                        </div>
+
+                        <!-- Interface split -->
+                        <div class="flex h-[calc(100%-2.5rem)] relative">
+                            <!-- Left: Image Input -->
+                            <div class="w-1/2 border-r border-white/5 bg-dark-800 p-6 relative overflow-hidden" id="mockup-img">
+                                <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+PC9zdmc+')] opacity-50"></div>
+                                <div class="h-full border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center p-4 relative bg-dark-900/50">
+                                    <div class="w-24 h-8 bg-gray-600 rounded mb-2 opacity-50"></div>
+                                    <div class="w-32 h-4 bg-gray-600 rounded mb-4 opacity-30"></div>
+                                    <div class="w-full h-24 bg-gray-700/50 rounded flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    </div>
+                                    
+                                    <!-- Scanning Animation line -->
+                                    <div class="absolute top-0 left-0 w-full h-1 bg-brand-400 shadow-[0_0_10px_rgba(56,189,248,0.8)] animate-scan"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Middle Arrow -->
+                            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-brand-500 flex items-center justify-center z-10 shadow-[0_0_20px_rgba(14,165,233,0.5)] border-4 border-dark-800">
+                                <svg class="w-5 h-5 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            </div>
+
+                            <!-- Right: HTML Output -->
+                            <div class="w-1/2 bg-[#0d0d0d] p-4 overflow-hidden relative">
+                                <div class="font-mono text-[10px] sm:text-xs leading-relaxed text-gray-300 whitespace-pre">
+<span class="token punct">&lt;</span><span class="token tag">div</span> <span class="token attr">class</span><span class="token punct">=</span><span class="token string">"hero-section"</span><span class="token punct">&gt;</span>
+  <span class="token punct">&lt;</span><span class="token tag">h1</span><span class="token punct">&gt;</span>AI Conversion<span class="token punct">&lt;/</span><span class="token tag">h1</span><span class="token punct">&gt;</span>
+  <span class="token punct">&lt;</span><span class="token tag">p</span><span class="token punct">&gt;</span>Instantly convert...<span class="token punct">&lt;/</span><span class="token tag">p</span><span class="token punct">&gt;</span>
+  <span class="token punct">&lt;</span><span class="token tag">div</span> <span class="token attr">class</span><span class="token punct">=</span><span class="token string">"image-grid"</span><span class="token punct">&gt;</span>
+    <span class="token punct">&lt;</span><span class="token tag">img</span> <span class="token attr">src</span><span class="token punct">=</span><span class="token string">"doc.jpg"</span> <span class="token punct">/&gt;</span>
+  <span class="token punct">&lt;/</span><span class="token tag">div</span><span class="token punct">&gt;</span>
+<span class="token punct">&lt;/</span><span class="token tag">div</span><span class="token punct">&gt;</span>
+                                </div>
+                                <div class="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-[#0d0d0d] to-transparent"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Floating UI elements -->
+                    <div class="absolute -right-8 -bottom-8 bg-dark-800 border border-white/10 rounded-xl p-4 shadow-2xl animate-float glass hidden md:flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-white">Conversion Complete</p>
+                            <p class="text-xs text-gray-400">0.8s elapsed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Logo Cloud -->
+    <section class="border-y border-white/5 bg-white/[0.02] py-10 relative z-10">
+        <div class="max-w-7xl mx-auto px-6">
+            <p class="text-center text-sm font-medium text-gray-500 mb-6">INTEGRATES SEAMLESSLY WITH YOUR FAVORITE TOOLS</p>
+            <div class="flex flex-wrap justify-center items-center gap-12 lg:gap-24 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+                <!-- Vercel-like logo -->
+                <div class="flex items-center gap-2"><svg class="w-6 h-6" viewBox="0 0 76 65" fill="white"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z"/></svg><span class="font-bold text-xl tracking-tight">Vercel</span></div>
+                <!-- React-like -->
+                <div class="flex items-center gap-2"><svg class="w-8 h-8 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg><span class="font-bold text-xl">React</span></div>
+                <!-- Tailwind-like -->
+                <div class="flex items-center gap-2"><svg class="w-8 h-8 text-brand-300" viewBox="0 0 24 24" fill="currentColor"><path d="M12.001 4.8c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624C13.666 10.618 15.027 12 18.001 12c3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C16.337 6.182 14.976 4.8 12.001 4.8zm-6 7.2c-3.2 0-5.2 1.6-6 4.8 1.2-1.6 2.6-2.2 4.2-1.8.913.228 1.565.89 2.288 1.624 1.177 1.194 2.538 2.576 5.512 2.576 3.2 0 5.2-1.6 6-4.8-1.2 1.6-2.6 2.2-4.2 1.8-.913-.228-1.565-.89-2.288-1.624C10.337 13.382 8.976 12 6.001 12z"/></svg><span class="font-bold text-xl">Tailwind</span></div>
+                <div class="flex items-center gap-2"><span class="font-bold text-xl tracking-widest">FIGMA</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-24 relative z-10">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-5xl font-bold mb-4">Engineered for <span class="text-gradient">Perfection</span></h2>
+                <p class="text-gray-400 max-w-2xl mx-auto text-lg">Next-generation algorithms reconstruct your visual designs into pixel-perfect, accessible, and responsive markup.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                <!-- Feature 1 -->
+                <div class="glass-card rounded-2xl p-8 reveal">
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-6 text-blue-400 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-blue-400/20 blur-xl"></div>
+                        <svg class="w-6 h-6 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3 text-white">Visual Document Recognition</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Advanced OCR and computer vision models detect layout structures, typography hierarchy, and UI elements with pinpoint accuracy.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="glass-card rounded-2xl p-8 reveal" style="transition-delay: 100ms;">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-6 text-purple-400 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-purple-400/20 blur-xl"></div>
+                        <svg class="w-6 h-6 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3 text-white">AI HTML Generation</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Transforms recognized visual elements into modern HTML5 and Tailwind CSS, following the latest web standards and practices.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="glass-card rounded-2xl p-8 reveal" style="transition-delay: 200ms;">
+                    <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mb-6 text-brand-400 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-brand-400/20 blur-xl"></div>
+                        <svg class="w-6 h-6 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3 text-white">One-Click Cleanup</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Automatically strip unnecessary divs, consolidate classes, and format indentation for perfectly readable developer handoffs.</p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="glass-card rounded-2xl p-8 reveal" style="transition-delay: 300ms;">
+                    <div class="w-12 h-12 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-6 text-green-400 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-green-400/20 blur-xl"></div>
+                        <svg class="w-6 h-6 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3 text-white">Semantic Markup Optimization</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Intelligently assigns correct HTML tags (nav, section, article, footer) boosting your SEO and accessibility out of the box.</p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="glass-card rounded-2xl p-8 reveal" style="transition-delay: 400ms;">
+                    <div class="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center mb-6 text-pink-400 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-pink-400/20 blur-xl"></div>
+                        <svg class="w-6 h-6 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3 text-white">Live Editing Workspace</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Tweak the generated code in an integrated Monaco editor and see real-time preview updates before finalizing.</p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="glass-card rounded-2xl p-8 reveal" style="transition-delay: 500ms;">
+                    <div class="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center mb-6 text-yellow-400 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-yellow-400/20 blur-xl"></div>
+                        <svg class="w-6 h-6 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-3 text-white">Instant Export</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed">Export directly to a zip file, copy to clipboard, or push directly to your GitHub repository with one click.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Demo Section -->
+    <section id="demo" class="py-24 relative z-10 bg-dark-900/50 border-y border-white/5">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-5xl font-bold mb-4">See the <span class="text-gradient-brand">Magic</span> Happen</h2>
+                <p class="text-gray-400 max-w-2xl mx-auto text-lg">From static pixels to dynamic structure.</p>
+            </div>
+            
+            <div class="glass-card rounded-2xl p-2 md:p-6 reveal">
+                <div class="flex flex-col lg:flex-row gap-6 items-center">
+                    <!-- Original Mockup -->
+                    <div class="w-full lg:w-[45%] rounded-xl overflow-hidden bg-white/5 border border-white/10 relative group">
+                        <div class="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-[10px] font-mono text-gray-300 z-10 border border-white/10">Input.jpg</div>
+                        <div class="aspect-[4/5] p-6 flex flex-col items-center justify-center opacity-60 group-hover:opacity-100 transition-opacity">
+                            <div class="w-full h-8 bg-gray-300 rounded-md mb-4"></div>
+                            <div class="w-3/4 h-32 bg-gray-400 rounded-lg mb-4"></div>
+                            <div class="w-full h-4 bg-gray-500 rounded mb-2"></div>
+                            <div class="w-5/6 h-4 bg-gray-500 rounded"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Transformation Icon -->
+                    <div class="w-full lg:w-[10%] flex justify-center py-4 lg:py-0">
+                        <div class="w-12 h-12 rounded-full bg-brand-500/20 border border-brand-500/50 flex items-center justify-center animate-pulse-slow">
+                            <svg class="w-6 h-6 text-brand-400 transform rotate-90 lg:rotate-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Code Output -->
+                    <div class="w-full lg:w-[45%] rounded-xl overflow-hidden bg-[#0d0d0d] border border-white/10 relative h-full">
+                        <div class="absolute top-2 left-2 px-2 py-1 bg-white/10 backdrop-blur rounded text-[10px] font-mono text-brand-300 z-10 border border-brand-500/30">output.html</div>
+                        <div class="aspect-[4/5] p-6 pt-12 overflow-y-auto font-mono text-xs text-gray-300 leading-loose">
+<span class="token punct">&lt;</span><span class="token tag">section</span> <span class="token attr">class</span><span class="token punct">=</span><span class="token string">"container mx-auto"</span><span class="token punct">&gt;</span>
+  <span class="token punct">&lt;</span><span class="token tag">header</span> <span class="token attr">class</span><span class="token punct">=</span><span class="token string">"mb-8"</span><span class="token punct">&gt;</span>
+    <span class="token punct">&lt;</span><span class="token tag">h1</span> <span class="token attr">class</span><span class="token punct">=</span><span class="token string">"text-2xl font-bold"</span><span class="token punct">&gt;</span>
+      Main Title
+    <span class="token punct">&lt;/</span><span class="token tag">h1</span><span class="token punct">&gt;</span>
+  <span class="token punct">&lt;/</span><span class="token tag">header</span><span class="token punct">&gt;</span>
+  <span class="token punct">&lt;</span><span class="token tag">div</span> <span class="token attr">class</span><span class="token punct">=</span><span class="token string">"bg-gray-100 rounded-lg p-6"</span><span class="token punct">&gt;</span>
+    <span class="token punct">&lt;</span><span class="token tag">img</span> 
+      <span class="token attr">src</span><span class="token punct">=</span><span class="token string">"/assets/hero.jpg"</span> 
+      <span class="token attr">alt</span><span class="token punct">=</span><span class="token string">"Hero image"</span>
+    <span class="token punct">/&gt;</span>
+  <span class="token punct">&lt;/</span><span class="token tag">div</span><span class="token punct">&gt;</span>
+  <span class="token punct">&lt;</span><span class="token tag">article</span> <span class="token attr">class</span><span class="token punct">=</span><span class="token string">"mt-4 space-y-2"</span><span class="token punct">&gt;</span>
+    <span class="token punct">&lt;</span><span class="token tag">p</span> <span class="token attr">class</span><span class="token punct">=</span><span class="token string">"text-gray-600"</span><span class="token punct">&gt;</span>
+      Generated paragraph text...
+    <span class="token punct">&lt;/</span><span class="token tag">p</span><span class="token punct">&gt;</span>
+  <span class="token punct">&lt;/</span><span class="token tag">article</span><span class="token punct">&gt;</span>
+<span class="token punct">&lt;/</span><span class="token tag">section</span><span class="token punct">&gt;</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits/Stats Section -->
+    <section class="py-20 relative z-10">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-white/10 glass-card rounded-2xl p-8 border border-white/10 reveal">
+                <div class="text-center px-4">
+                    <div class="text-4xl md:text-5xl font-extrabold text-white mb-2 counter" data-target="10">0</div>
+                    <div class="text-brand-400 font-medium text-sm md:text-base">x Faster Conversion</div>
+                </div>
+                <div class="text-center px-4">
+                    <div class="text-4xl md:text-5xl font-extrabold text-white mb-2"><span class="counter" data-target="99">0</span>%</div>
+                    <div class="text-brand-400 font-medium text-sm md:text-base">Accurate Structure</div>
+                </div>
+                <div class="text-center px-4">
+                    <div class="text-4xl md:text-5xl font-extrabold text-white mb-2"><span class="counter" data-target="50">0</span>K+</div>
+                    <div class="text-brand-400 font-medium text-sm md:text-base">Documents Processed</div>
+                </div>
+                <div class="text-center px-4">
+                    <div class="text-4xl md:text-5xl font-extrabold text-white mb-2">Secs</div>
+                    <div class="text-brand-400 font-medium text-sm md:text-base">Instead of Hours</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section id="testimonials" class="py-24 relative z-10">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-5xl font-bold mb-4">Loved by <span class="text-gradient">Developers</span></h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Testimonial 1 -->
+                <div class="glass-card p-6 rounded-2xl reveal border border-white/5">
+                    <div class="flex items-center gap-4 mb-4">
+                        <img src="https://i.pravatar.cc/150?img=11" alt="Sarah J." class="w-12 h-12 rounded-full border border-gray-700">
+                        <div>
+                            <h4 class="text-white font-medium">Sarah Jenkins</h4>
+                            <p class="text-xs text-gray-400">Frontend Lead at TechFlow</p>
+                        </div>
+                    </div>
+                    <div class="flex text-brand-400 mb-3">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                    </div>
+                    <p class="text-gray-300 text-sm italic">"Doc2HTML completely transformed our workflow. What used to take days of manual slicing and coding from design mockups now literally takes seconds. The generated Tailwind CSS is exactly how I would write it by hand."</p>
+                </div>
+
+                <!-- Testimonial 2 -->
+                <div class="glass-card p-6 rounded-2xl reveal border border-white/5" style="transition-delay: 100ms;">
+                    <div class="flex items-center gap-4 mb-4">
+                        <img src="https://i.pravatar.cc/150?img=33" alt="Marcus T." class="w-12 h-12 rounded-full border border-gray-700">
+                        <div>
+                            <h4 class="text-white font-medium">Marcus T.</h4>
+                            <p class="text-xs text-gray-400">Indie Hacker</p>
+                        </div>
+                    </div>
+                    <div class="flex text-brand-400 mb-3">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                    </div>
+                    <p class="text-gray-300 text-sm italic">"The accuracy is mind-blowing. I upload screenshots of my Figma files, and it nails the layout structure 99% of the time. The cleanup feature is a lifesaver for getting production-ready code."</p>
+                </div>
+
+                <!-- Testimonial 3 -->
+                <div class="glass-card p-6 rounded-2xl reveal border border-white/5" style="transition-delay: 200ms;">
+                    <div class="flex items-center gap-4 mb-4">
+                        <img src="https://i.pravatar.cc/150?img=47" alt="Elena R." class="w-12 h-12 rounded-full border border-gray-700">
+                        <div>
+                            <h4 class="text-white font-medium">Elena R.</h4>
+                            <p class="text-xs text-gray-400">UI/UX Designer</p>
+                        </div>
+                    </div>
+                    <div class="flex text-brand-400 mb-3">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                    </div>
+                    <p class="text-gray-300 text-sm italic">"I can finally hand off designs knowing the developers will have a perfect starting point. The translation from visual to code is flawless, maintaining all the design system constraints we set."</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="py-32 relative z-10 overflow-hidden">
+        <div class="absolute inset-0 bg-brand-900/10 z-0"></div>
+        <div class="max-w-4xl mx-auto px-6 text-center relative z-10 reveal">
+            <h2 class="text-5xl md:text-6xl font-extrabold mb-8 tracking-tight">Ready to Turn Documents <br/> Into <span class="text-gradient-brand">HTML?</span></h2>
+            <p class="text-xl text-gray-400 mb-10">Join thousands of developers and designers saving hours on markup.</p>
+            
+            <button class="px-10 py-5 rounded-full bg-white text-black font-bold text-xl hover:bg-gray-200 transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)]">
+                Get Started Now
+            </button>
+            <p class="mt-6 text-sm text-gray-500">No credit card required. Free tier available.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-dark-900 pt-16 pb-8 relative z-10">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded bg-gradient-to-br from-brand-400 to-purple-600 flex items-center justify-center">
+                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                </div>
+                <span class="text-lg font-bold text-white">Doc2HTML</span>
+            </div>
+            
+            <div class="flex gap-6 text-sm text-gray-500">
+                <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
+                <a href="#" class="hover:text-white transition-colors">Terms of Service</a>
+                <a href="#" class="hover:text-white transition-colors">Twitter</a>
+                <a href="#" class="hover:text-white transition-colors">GitHub</a>
+            </div>
+            
+            <p class="text-sm text-gray-600">© 2026 Doc2HTML. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Remove loader when page loads
+        window.addEventListener('load', () => {
+            const loader = document.getElementById('loader');
+            loader.style.opacity = '0';
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 500);
+        });
+
+        // Mouse follow glow effect
+        const mouseGlow = document.getElementById('mouseGlow');
+        document.addEventListener('mousemove', (e) => {
+            requestAnimationFrame(() => {
+                mouseGlow.style.left = e.clientX + 'px';
+                mouseGlow.style.top = e.clientY + 'px';
+            });
+        });
+
+        // Scroll reveal animations
+        const revealElements = document.querySelectorAll('.reveal');
+        
+        const revealCallback = (entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    observer.unobserve(entry.target);
+                }
+            });
+        };
+
+        const revealOptions = {
+            threshold: 0.1,
+            rootMargin: "0px 0px -50px 0px"
+        };
+
+        const revealObserver = new IntersectionObserver(revealCallback, revealOptions);
+        
+        revealElements.forEach(el => {
+            revealObserver.observe(el);
+        });
+
+        // Parallax Effect
+        document.addEventListener('mousemove', (e) => {
+            const layers = document.querySelectorAll('.parallax-layer');
+            const x = (window.innerWidth - e.pageX) / 100;
+            const y = (window.innerHeight - e.pageY) / 100;
+            
+            layers.forEach(layer => {
+                const speed = layer.getAttribute('data-speed');
+                const xOffset = x * speed * 100;
+                const yOffset = y * speed * 100;
+                layer.style.transform = `translateX(${xOffset}px) translateY(${yOffset}px)`;
+            });
+        });
+
+        // Navbar blur effect on scroll
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('bg-dark-900/80');
+                navbar.classList.add('shadow-lg');
+            } else {
+                navbar.classList.remove('bg-dark-900/80');
+                navbar.classList.remove('shadow-lg');
+            }
+        });
+
+        // Counter Animation
+        const counters = document.querySelectorAll('.counter');
+        const counterOptions = { threshold: 1, rootMargin: "0px" };
+
+        const counterObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const target = +entry.target.getAttribute('data-target');
+                    const duration = 2000;
+                    const step = target / (duration / 16); 
+                    let current = 0;
+
+                    const updateCounter = () => {
+                        current += step;
+                        if (current < target) {
+                            entry.target.innerText = Math.ceil(current);
+                            requestAnimationFrame(updateCounter);
+                        } else {
+                            entry.target.innerText = target;
+                        }
+                    };
+                    updateCounter();
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, counterOptions);
+
+        counters.forEach(counter => {
+            counterObserver.observe(counter);
+        });
+    </script>
+</body>
+</html>
