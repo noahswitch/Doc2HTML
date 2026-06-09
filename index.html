@@ -1,339 +1,933 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doc2HTML — Live Document to HTML Editor</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* Editor & Preview Styles */
-        .rich-editor {
-            min-height: 100%;
-            outline: none;
-            line-height: 1.6;
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-        .rich-editor:empty:before {
-            content: attr(placeholder);
-            color: #9ca3af;
-            pointer-events: none;
-            display: block;
-        }
-        /* Ensure pasted tables look clean */
-        .rich-editor table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 1rem 0;
-        }
-        .rich-editor th, .rich-editor td {
-            border: 1px solid #d1d5db;
-            padding: 0.5rem 0.75rem;
-        }
-        .rich-editor th {
-            background-color: #f3f4f6;
-            font-weight: 600;
-        }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noah-Doc2HTML — Document Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ───────────────────────────────────────────── */
+:root{
+  --bg:#07090f;
+  --surface:#0d1018;
+  --panel:#0c0f17;
+  --panel2:#101420;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.12);
+  --fg:#d8e2f4;
+  --fg2:#94a3b8;
+  --fg3:#4e5d72;
+  --accent:#5b8ef5;
+  --accent-dim:rgba(91,142,245,.12);
+  --accent-border:rgba(91,142,245,.3);
+  --green:#52d49a;
+  --green-dim:rgba(82,212,154,.1);
+  --green-border:rgba(82,212,154,.28);
+  --yellow:#f5c542;
+  --yellow-dim:rgba(245,197,66,.1);
+  --red:#f06464;
+  --radius:8px;
+  --radius-lg:12px;
+  --mono:'Geist Mono',monospace;
+  --sans:'Inter',system-ui,sans-serif;
+}
+*,::before,::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:13px;overflow:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.09);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.16)}
 
-        .tab-active {
-            border-bottom: 2px solid #3b82f6;
-            color: #3b82f6;
-            font-weight: 600;
-        }
-        
-        /* Preview Iframe Reset */
-        .preview-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: white;
-        }
-    </style>
+/* ── LAYOUT ───────────────────────────────────────────── */
+#app{display:flex;flex-direction:column;height:100vh}
+#topbar{
+  height:48px;flex-shrink:0;
+  display:flex;align-items:center;gap:12px;padding:0 16px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+}
+#workspace{flex:1;display:flex;overflow:hidden;gap:0}
+#col-left,#col-right{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#col-left{border-right:1px solid var(--border)}
+#statusbar{
+  height:26px;flex-shrink:0;
+  display:flex;align-items:center;padding:0 14px;gap:16px;
+  background:var(--surface);border-top:1px solid var(--border);
+}
+
+/* ── COL HEADERS ──────────────────────────────────────── */
+.col-header{
+  height:38px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 14px;
+  background:var(--panel2);
+  border-bottom:1px solid var(--border);
+}
+.col-label{
+  font-size:10px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--fg3);
+}
+
+/* ── TOPBAR ELEMENTS ──────────────────────────────────── */
+.logo{
+  width:26px;height:26px;border-radius:7px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent) 0%,var(--green) 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#07090f;
+  font-family:var(--mono);
+}
+.app-title{font-weight:600;font-size:13px;color:var(--fg);letter-spacing:-.01em;margin-right:4px}
+.divider-v{width:1px;height:20px;background:var(--border);flex-shrink:0}
+
+/* formatting toolbar pills */
+#fmt-bar{display:flex;align-items:center;gap:3px}
+.fmt-btn{
+  padding:4px 9px;border-radius:6px;font-family:var(--mono);font-size:11px;
+  font-weight:500;cursor:pointer;border:1px solid transparent;
+  background:transparent;color:var(--fg2);white-space:nowrap;
+  transition:all .12s;
+}
+.fmt-btn:hover{color:var(--fg);background:rgba(255,255,255,.05);border-color:var(--border)}
+.fmt-btn.active{background:var(--accent-dim);border-color:var(--accent-border);color:#8ab8fc}
+
+/* action buttons */
+.action-group{display:flex;align-items:center;gap:4px;margin-left:auto}
+.btn{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 11px;border-radius:var(--radius);
+  font-family:var(--sans);font-size:11px;font-weight:500;
+  cursor:pointer;border:1px solid var(--border);
+  background:transparent;color:var(--fg2);
+  white-space:nowrap;transition:all .12s;
+}
+.btn:hover{color:var(--fg);background:rgba(255,255,255,.04);border-color:var(--border2)}
+.btn.green{background:var(--green-dim);border-color:var(--green-border);color:#6ddfa6}
+.btn.green:hover{background:rgba(82,212,154,.16)}
+.btn.blue{background:var(--accent-dim);border-color:var(--accent-border);color:#7faafc}
+.btn.blue:hover{background:rgba(91,142,245,.18)}
+.btn:disabled{opacity:.3;pointer-events:none}
+.btn svg{flex-shrink:0}
+
+/* ── ICON BUTTONS ─────────────────────────────────────── */
+.icon-btn{
+  width:28px;height:28px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;border:1px solid transparent;background:transparent;color:var(--fg3);
+  transition:all .12s;font-size:13px;
+}
+.icon-btn:hover{color:var(--fg);background:rgba(255,255,255,.05);border-color:var(--border)}
+
+/* ── EDITOR (contenteditable) ─────────────────────────── */
+#doc-scroll{flex:1;overflow:auto;padding:28px 24px;background:var(--panel)}
+#doc-page{
+  max-width:820px;margin:0 auto;
+  background:#fff;
+  color:#1a202c;
+  font-family:var(--sans);font-size:14px;line-height:1.7;
+  border-radius:var(--radius-lg);
+  padding:40px 48px;
+  box-shadow:0 4px 32px rgba(0,0,0,.45);
+  min-height:520px;outline:none;
+}
+#doc-page:focus-within{box-shadow:0 4px 32px rgba(0,0,0,.45),0 0 0 2px rgba(91,142,245,.3)}
+#doc-page h1{font-size:2rem;font-weight:700;line-height:1.2;margin:0 0 16px;color:#111}
+#doc-page h2{font-size:1.4rem;font-weight:600;margin:24px 0 10px;color:#1a1a1a}
+#doc-page h3{font-size:1.1rem;font-weight:600;margin:20px 0 8px;color:#1a1a1a}
+#doc-page p{margin:0 0 10px}
+#doc-page ul,#doc-page ol{margin:0 0 10px;padding-left:24px}
+#doc-page li{margin-bottom:4px}
+#doc-page table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+#doc-page td,#doc-page th{border:1px solid #d1d5db;padding:7px 10px;vertical-align:top}
+#doc-page th{background:#f8fafc;font-weight:600;color:#374151}
+#doc-page blockquote{border-left:3px solid #6366f1;margin:12px 0;padding:8px 16px;background:#f8f7ff;color:#3730a3;border-radius:0 6px 6px 0}
+#doc-page a{color:#4f46e5;text-decoration:underline}
+#doc-page hr{border:none;border-top:2px solid #e5e7eb;margin:20px 0}
+#doc-page code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:.88em;color:#be185d}
+[contenteditable]:focus{outline:none}
+
+/* ── HTML SOURCE ──────────────────────────────────────── */
+#html-wrap{flex:1;display:flex;overflow:hidden}
+#line-nums{
+  width:42px;flex-shrink:0;padding:14px 8px 14px 10px;
+  font-family:var(--mono);font-size:11.5px;line-height:1.75;
+  color:var(--fg3);text-align:right;user-select:none;
+  overflow:hidden;background:var(--panel);
+}
+#html-editor{
+  flex:1;background:var(--panel);border:none;outline:none;resize:none;
+  font-family:var(--mono);font-size:12px;line-height:1.75;
+  color:#b0c4e8;padding:14px 16px 14px 12px;
+  overflow:auto;tab-size:2;white-space:pre;
+}
+
+/* ── RIGHT PANEL TABS ─────────────────────────────────── */
+#right-tabs{display:flex;gap:2px}
+.r-tab{
+  padding:4px 11px;border-radius:6px;font-size:11px;font-weight:500;
+  color:var(--fg3);cursor:pointer;border:1px solid transparent;
+  transition:all .12s;
+}
+.r-tab.active,.r-tab:hover{color:var(--fg);background:rgba(255,255,255,.05);border-color:var(--border)}
+.r-tab.active{color:#8ab8fc;background:var(--accent-dim);border-color:var(--accent-border)}
+
+/* ── PREVIEW FRAME ────────────────────────────────────── */
+#preview-frame{width:100%;height:100%;border:none;background:#fff;display:none}
+#preview-empty{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:10px;color:var(--fg3);background:var(--panel);
+}
+#preview-empty p{font-size:11px;text-align:center;line-height:1.9;max-width:260px}
+
+/* ── STATUS BAR ───────────────────────────────────────── */
+.sb-item{font-size:10px;color:var(--fg3);display:flex;align-items:center;gap:5px}
+.sb-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.sb-dot.yellow{background:var(--yellow)}
+
+/* ── FLOATING TOOLBAR (selection) ────────────────────── */
+#float-toolbar{
+  position:fixed;z-index:99;display:none;
+  padding:5px 7px;gap:3px;
+  background:rgba(7,9,15,.97);border:1px solid var(--border2);
+  border-radius:9px;backdrop-filter:blur(14px);
+  box-shadow:0 8px 28px rgba(0,0,0,.5);
+}
+#float-toolbar .fmt-btn{font-size:11px;padding:3px 8px}
+
+/* ── CHANGE LOG PANEL ─────────────────────────────────── */
+#changelog-wrap{display:none;flex-direction:column;overflow:hidden;height:180px;flex-shrink:0;border-top:1px solid var(--border);background:var(--panel2)}
+#changelog-wrap.open{display:flex}
+#changelog-header{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--border)}
+#changelog-list{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:4px}
+.change-item{
+  display:flex;align-items:flex-start;gap:8px;padding:5px 8px;
+  border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,.02);
+  font-size:10.5px;line-height:1.5;
+}
+.change-badge{
+  flex-shrink:0;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.06em;margin-top:1px;
+}
+.badge-edit{background:rgba(91,142,245,.15);color:#7faafc;border:1px solid rgba(91,142,245,.2)}
+.badge-paste{background:rgba(82,212,154,.12);color:#6ddfa6;border:1px solid rgba(82,212,154,.2)}
+.badge-format{background:rgba(245,197,66,.1);color:#f5c542;border:1px solid rgba(245,197,66,.2)}
+.badge-insert{background:rgba(167,139,250,.12);color:#c4b5fd;border:1px solid rgba(167,139,250,.2)}
+.badge-clear{background:rgba(240,100,100,.1);color:#f09090;border:1px solid rgba(240,100,100,.2)}
+.change-text{flex:1;color:var(--fg2)}
+.change-time{flex-shrink:0;color:var(--fg3);font-family:var(--mono);font-size:9.5px;margin-top:2px}
+
+/* ── COPY SUCCESS FLASH ───────────────────────────────── */
+.toast{
+  position:fixed;bottom:36px;left:50%;transform:translateX(-50%);
+  padding:8px 16px;border-radius:8px;font-size:11px;font-weight:500;
+  background:rgba(13,16,24,.98);border:1px solid var(--border2);color:var(--green);
+  z-index:9999;pointer-events:none;
+  animation:fadeUp .2s ease forwards;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateX(-50%) translateY(6px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* ── MODAL ────────────────────────────────────────────── */
+#modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.65);backdrop-filter:blur(5px);align-items:center;justify-content:center}
+#modal.open{display:flex}
+.modal-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:28px;max-width:500px;width:92%;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.modal-card h2{font-size:1.1rem;font-weight:600;margin-bottom:8px}
+.modal-card p,.modal-card li{font-size:12px;color:var(--fg2);line-height:1.85}
+.modal-card ul{padding-left:18px;margin-top:6px;margin-bottom:8px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+
+/* ── CONTEXT MENU ─────────────────────────────────────── */
+#ctx-menu{
+  position:fixed;z-index:150;display:none;
+  background:var(--surface);border:1px solid var(--border2);border-radius:9px;
+  padding:5px;box-shadow:0 12px 36px rgba(0,0,0,.55);min-width:170px;
+}
+.ctx-item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;border-radius:6px;font-size:11.5px;color:var(--fg2);
+  cursor:pointer;
+}
+.ctx-item:hover{background:rgba(255,255,255,.05);color:var(--fg)}
+.ctx-item .ctx-icon{width:16px;text-align:center;font-size:13px;color:var(--fg3)}
+.ctx-sep{height:1px;background:var(--border);margin:4px 0}
+.ctx-kbd{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--fg3)}
+</style>
 </head>
-<body class="bg-gray-50 text-gray-800 flex flex-col h-screen overflow-hidden">
+<body>
+<div id="app">
 
-    <!-- Header -->
-    <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm z-10">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-600 text-white p-2 rounded-lg">
-                <i class="fa-solid fa-file-code text-xl"></i>
-            </div>
-            <div>
-                <h1 class="text-lg font-bold text-gray-900">Doc2HTML</h1>
-                <p class="text-xs text-gray-500">Live Visual Document to Clean HTML</p>
-            </div>
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="logo">D</div>
+    <span class="app-title">Noah-Doc2HTML</span>
+    <div class="divider-v"></div>
+
+    <!-- Formatting toolbar -->
+    <div id="fmt-bar">
+      <button class="fmt-btn" onclick="cmd('bold')" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button class="fmt-btn" onclick="cmd('italic')" title="Italic (Ctrl+I)"><i>I</i></button>
+      <button class="fmt-btn" onclick="cmd('underline')" title="Underline (Ctrl+U)"><u>U</u></button>
+      <button class="fmt-btn" onclick="cmd('strikeThrough')" title="Strikethrough"><s>S</s></button>
+      <div class="divider-v"></div>
+      <button class="fmt-btn" onclick="insertBlock('h1')" title="Heading 1">H1</button>
+      <button class="fmt-btn" onclick="insertBlock('h2')" title="Heading 2">H2</button>
+      <button class="fmt-btn" onclick="insertBlock('h3')" title="Heading 3">H3</button>
+      <button class="fmt-btn" onclick="insertBlock('p')" title="Paragraph">P</button>
+      <button class="fmt-btn" onclick="insertBlock('blockquote')" title="Blockquote">❝</button>
+      <div class="divider-v"></div>
+      <button class="fmt-btn" onclick="cmd('insertUnorderedList')" title="Bullet list">• List</button>
+      <button class="fmt-btn" onclick="cmd('insertOrderedList')" title="Numbered list"># List</button>
+      <div class="divider-v"></div>
+      <button class="fmt-btn" onclick="insertTable(3,3)" title="Insert 3×3 table">⊞ Table</button>
+      <button class="fmt-btn" onclick="insertHR()" title="Horizontal rule">─ HR</button>
+      <div class="divider-v"></div>
+      <button class="fmt-btn" onclick="cmd('removeFormat')" title="Clear formatting">✕ Clear fmt</button>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="action-group">
+      <button class="btn" onclick="insertSample()" title="Load sample content">Sample</button>
+      <div class="divider-v"></div>
+      <button class="btn" onclick="copyDocText()" title="Copy plain text from editor">Copy text</button>
+      <button class="btn" onclick="copyHTMLSource()" title="Copy raw HTML source">Copy HTML</button>
+      <button class="btn" onclick="pasteFromClipboard()" title="Paste from clipboard into editor">Paste</button>
+      <div class="divider-v"></div>
+      <button class="btn" onclick="formatHTMLSource()" title="Auto-indent HTML source">Format</button>
+      <button class="btn" onclick="clearAll()" title="Clear everything">Clear</button>
+      <button class="btn green" onclick="exportHTML()" title="Download as HTML file">↓ Export</button>
+      <button class="icon-btn" onclick="openModal()" title="Help">?</button>
+    </div>
+  </div>
+
+  <!-- WORKSPACE: two columns -->
+  <div id="workspace">
+
+    <!-- LEFT: Document editor -->
+    <div id="col-left">
+      <div class="col-header">
+        <span class="col-label">Document Editor</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span id="word-count" style="font-size:10px;color:var(--fg3)">0 words</span>
+          <button class="icon-btn" onclick="toggleChangelog()" title="Toggle change log" id="log-toggle">⏱</button>
         </div>
-        <div class="flex gap-2">
-            <button onclick="clearAll()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
-                <i class="fa-solid fa-trash-can mr-2"></i>Clear
-            </button>
-            <button onclick="copyHTML()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
-                <i class="fa-regular fa-copy mr-2"></i>Copy HTML
-            </button>
-            <button onclick="downloadHTML()" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-sm">
-                <i class="fa-solid fa-download mr-2"></i>Export .html
-            </button>
+      </div>
+      <div id="doc-scroll">
+        <div id="doc-page" contenteditable="true" spellcheck="false"></div>
+      </div>
+      <!-- Change log panel -->
+      <div id="changelog-wrap">
+        <div id="changelog-header">
+          <span style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)">Change Log</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn" onclick="clearLog()" style="padding:3px 8px;font-size:10px">Clear log</button>
+            <button class="icon-btn" onclick="toggleChangelog()" style="width:22px;height:22px;font-size:11px">✕</button>
+          </div>
         </div>
-    </header>
+        <div id="changelog-list"><div style="font-size:11px;color:var(--fg3);padding:8px 4px">No changes yet.</div></div>
+      </div>
+    </div>
 
-    <!-- Main Two-Panel Layout -->
-    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
-        
-        <!-- LEFT PANEL: Document Editor -->
-        <section class="w-full md:w-1/2 flex flex-col border-r border-gray-200 bg-white">
-            <!-- Toolbar -->
-            <div class="px-4 py-2 border-b border-gray-200 bg-gray-50 flex flex-wrap gap-1 items-center">
-                <button onclick="formatDoc('bold')" class="p-2 text-gray-600 hover:bg-gray-200 rounded" title="Bold"><i class="fa-solid fa-bold"></i></button>
-                <button onclick="formatDoc('italic')" class="p-2 text-gray-600 hover:bg-gray-200 rounded" title="Italic"><i class="fa-solid fa-italic"></i></button>
-                <button onclick="formatDoc('underline')" class="p-2 text-gray-600 hover:bg-gray-200 rounded" title="Underline"><i class="fa-solid fa-underline"></i></button>
-                <div class="w-px h-6 bg-gray-300 mx-1"></div>
-                <button onclick="formatDoc('formatBlock', 'H1')" class="p-2 text-gray-600 hover:bg-gray-200 rounded font-bold" title="Heading 1">H1</button>
-                <button onclick="formatDoc('formatBlock', 'H2')" class="p-2 text-gray-600 hover:bg-gray-200 rounded font-semibold" title="Heading 2">H2</button>
-                <button onclick="formatDoc('formatBlock', 'P')" class="p-2 text-gray-600 hover:bg-gray-200 rounded" title="Paragraph">P</button>
-                <div class="w-px h-6 bg-gray-300 mx-1"></div>
-                <button onclick="formatDoc('insertUnorderedList')" class="p-2 text-gray-600 hover:bg-gray-200 rounded" title="Bullet List"><i class="fa-solid fa-list-ul"></i></button>
-                <button onclick="formatDoc('insertOrderedList')" class="p-2 text-gray-600 hover:bg-gray-200 rounded" title="Numbered List"><i class="fa-solid fa-list-ol"></i></button>
-                <div class="w-px h-6 bg-gray-300 mx-1"></div>
-                <button onclick="insertTable()" class="p-2 text-gray-600 hover:bg-gray-200 rounded" title="Insert Table"><i class="fa-solid fa-table"></i></button>
-                <button onclick="formatDoc('removeFormat')" class="p-2 text-red-500 hover:bg-red-50 rounded ml-auto" title="Clear Formatting"><i class="fa-solid fa-eraser"></i></button>
-            </div>
-            
-            <!-- Editor Area -->
-            <div class="flex-1 p-6 overflow-y-auto">
-                <div id="docEditor" 
-                     contenteditable="true" 
-                     class="rich-editor w-full h-full text-gray-800"
-                     placeholder="Type here, or paste directly from Microsoft Word, Excel, or Google Docs...&#10;&#10;Tables, formatting, and lists are preserved automatically.">
-                </div>
-            </div>
-        </section>
-
-        <!-- RIGHT PANEL: HTML Code & Live Preview -->
-        <section class="w-full md:w-1/2 flex flex-col bg-gray-50">
-            <!-- Tabs -->
-            <div class="flex border-b border-gray-200 bg-white px-4">
-                <button onclick="switchTab('code')" id="tab-code" class="tab-active px-4 py-3 text-sm font-medium text-gray-600 hover:text-blue-600 transition flex items-center gap-2">
-                    <i class="fa-solid fa-code"></i> HTML Code
-                </button>
-                <button onclick="switchTab('preview')" id="tab-preview" class="px-4 py-3 text-sm font-medium text-gray-600 hover:text-blue-600 transition flex items-center gap-2">
-                    <i class="fa-solid fa-eye"></i> Live Preview
-                </button>
-            </div>
-
-            <!-- Tab Contents -->
-            <div class="flex-1 relative overflow-hidden">
-                <!-- Code View -->
-                <div id="view-code" class="absolute inset-0 flex flex-col">
-                    <textarea id="htmlOutput" class="flex-1 w-full p-4 font-mono text-sm bg-gray-900 text-green-400 resize-none focus:outline-none" spellcheck="false" placeholder="<!-- Live HTML output will appear here as you type... -->"></textarea>
-                    <div class="px-4 py-2 bg-gray-800 text-gray-400 text-xs flex justify-between border-t border-gray-700">
-                        <span id="charCount">0 characters</span>
-                        <span>Auto-updating</span>
-                    </div>
-                </div>
-
-                <!-- Preview View -->
-                <div id="view-preview" class="absolute inset-0 hidden">
-                    <iframe id="previewFrame" class="preview-iframe"></iframe>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Footer / Settings Bar -->
-    <footer class="bg-white border-t border-gray-200 px-6 py-3 z-10">
-        <div class="flex flex-wrap items-center justify-between gap-4 text-sm">
-            <div class="flex items-center gap-2 text-gray-600 font-medium">
-                <i class="fa-brands fa-github"></i> Doc2HTML · Open Source
-            </div>
-            
-            <div class="flex flex-wrap items-center gap-4 text-gray-700">
-                <div class="flex items-center gap-2">
-                    <span class="text-gray-500 text-xs uppercase tracking-wider font-semibold">Output Style:</span>
-                    <select id="outputStyle" onchange="updateLivePreview()" class="bg-gray-50 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        <option value="semantic">Semantic HTML5 + Tailwind</option>
-                        <option value="plain">Plain HTML</option>
-                    </select>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <span class="text-gray-500 text-xs uppercase tracking-wider font-semibold">Indent:</span>
-                    <select id="indentStyle" onchange="updateLivePreview()" class="bg-gray-50 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
-                        <option value="2">2 spaces</option>
-                        <option value="4">4 spaces</option>
-                        <option value="tab">Tab</option>
-                    </select>
-                </div>
-
-                <div class="flex items-center gap-3 ml-2">
-                    <label class="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" id="includeDoctype" checked onchange="updateLivePreview()" class="rounded text-blue-600 focus:ring-blue-500">
-                        <span class="text-xs">DOCTYPE</span>
-                    </label>
-                    <label class="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" id="includeMeta" checked onchange="updateLivePreview()" class="rounded text-blue-600 focus:ring-blue-500">
-                        <span class="text-xs">Meta Viewport</span>
-                    </label>
-                </div>
-            </div>
+    <!-- RIGHT: HTML source + Preview tabs -->
+    <div id="col-right">
+      <div class="col-header">
+        <div id="right-tabs">
+          <div class="r-tab active" data-tab="html" onclick="switchRightTab('html')">HTML Source</div>
+          <div class="r-tab" data-tab="preview" onclick="switchRightTab('preview')">Preview</div>
         </div>
-    </footer>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span id="char-count" style="font-size:10px;color:var(--fg3)">0 chars</span>
+          <button class="icon-btn" onclick="copyHTMLSource()" title="Copy HTML source">⎘</button>
+        </div>
+      </div>
 
-    <!-- JavaScript Logic -->
-    <script>
-        const docEditor = document.getElementById('docEditor');
-        const htmlOutput = document.getElementById('htmlOutput');
-        const previewFrame = document.getElementById('previewFrame');
-        const charCount = document.getElementById('charCount');
+      <!-- HTML panel -->
+      <div id="html-pane" style="flex:1;display:flex;overflow:hidden">
+        <div id="line-nums">1</div>
+        <textarea id="html-editor" spellcheck="false" placeholder="HTML output appears here…" oninput="onHTMLInput()"></textarea>
+      </div>
 
-        // 1. Rich Text Formatting Commands
-        function formatDoc(cmd, value = null) {
-            if (value) {
-                document.execCommand(cmd, false, value);
-            } else {
-                document.execCommand(cmd);
-            }
-            docEditor.focus();
-            updateLivePreview();
-        }
+      <!-- Preview panel -->
+      <div id="preview-pane" style="flex:1;display:none;flex-direction:column;overflow:hidden">
+        <div id="preview-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          <p>Preview renders live from the document editor. Start typing to see it here.</p>
+        </div>
+        <iframe id="preview-frame"></iframe>
+      </div>
+    </div>
 
-        // 2. Insert a basic table
-        function insertTable() {
-            const tableHTML = `
-                <table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
-                    <thead>
-                        <tr>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; background: #f3f4f6;">Header 1</th>
-                            <th style="border: 1px solid #d1d5db; padding: 8px; background: #f3f4f6;">Header 2</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="border: 1px solid #d1d5db; padding: 8px;">Row 1, Cell 1</td>
-                            <td style="border: 1px solid #d1d5db; padding: 8px;">Row 1, Cell 2</td>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #d1d5db; padding: 8px;">Row 2, Cell 1</td>
-                            <td style="border: 1px solid #d1d5db; padding: 8px;">Row 2, Cell 2</td>
-                        </tr>
-                    </tbody>
-                </table><p><br></p>
-            `;
-            document.execCommand('insertHTML', false, tableHTML);
-            updateLivePreview();
-        }
+  </div>
 
-        // 3. Live Preview Updater (Debounced for performance)
-        let timeout;
-        docEditor.addEventListener('input', () => {
-            clearTimeout(timeout);
-            timeout = setTimeout(updateLivePreview, 300); // 300ms debounce
-        });
+  <!-- STATUS BAR -->
+  <div id="statusbar">
+    <div class="sb-item"><div class="sb-dot" id="status-dot"></div><span id="status-text">Ready</span></div>
+    <div class="sb-item" id="sb-lines">1 line</div>
+    <div style="flex:1"></div>
+    <div class="sb-item">Ctrl+S to export &nbsp;·&nbsp; Ctrl+Shift+C copy HTML &nbsp;·&nbsp; Right-click for menu</div>
+  </div>
 
-        // Also update if user pastes
-        docEditor.addEventListener('paste', () => {
-            setTimeout(updateLivePreview, 100);
-        });
+</div>
 
-        function updateLivePreview() {
-            let content = docEditor.innerHTML;
-            
-            // Clean up empty placeholder paragraphs
-            if (content === '<p><br></p>' || content === '<br>') {
-                content = '';
-            }
+<!-- FLOATING SELECTION TOOLBAR -->
+<div id="float-toolbar">
+  <button class="fmt-btn" onclick="cmd('bold')"><b>B</b></button>
+  <button class="fmt-btn" onclick="cmd('italic')"><i>I</i></button>
+  <button class="fmt-btn" onclick="cmd('underline')"><u>U</u></button>
+  <button class="fmt-btn" onclick="cmd('strikeThrough')"><s>S</s></button>
+  <div class="divider-v" style="height:18px;background:var(--border)"></div>
+  <button class="fmt-btn" onclick="copySelectedText()">Copy</button>
+  <button class="fmt-btn" onclick="cutSelected()">Cut</button>
+  <button class="fmt-btn" onclick="cmd('removeFormat')">Clear</button>
+</div>
 
-            const style = document.getElementById('outputStyle').value;
-            const indent = document.getElementById('indentStyle').value === 'tab' ? '\t' : ' '.repeat(parseInt(document.getElementById('indentStyle').value));
-            const includeDoctype = document.getElementById('includeDoctype').checked;
-            const includeMeta = document.getElementById('includeMeta').checked;
+<!-- CONTEXT MENU -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="pasteFromClipboard()"><span class="ctx-icon">⎋</span> Paste <span class="ctx-kbd">Ctrl+V</span></div>
+  <div class="ctx-item" onclick="copySelectedText()"><span class="ctx-icon">⎘</span> Copy <span class="ctx-kbd">Ctrl+C</span></div>
+  <div class="ctx-item" onclick="cutSelected()"><span class="ctx-icon">✂</span> Cut <span class="ctx-kbd">Ctrl+X</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="cmd('bold')"><span class="ctx-icon"><b>B</b></span> Bold</div>
+  <div class="ctx-item" onclick="cmd('italic')"><span class="ctx-icon"><i>I</i></span> Italic</div>
+  <div class="ctx-item" onclick="cmd('removeFormat')"><span class="ctx-icon">✕</span> Clear format</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="copyHTMLSource()"><span class="ctx-icon">&lt;/&gt;</span> Copy HTML source</div>
+  <div class="ctx-item" onclick="copyDocText()"><span class="ctx-icon">¶</span> Copy plain text</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="removeCurrentTable()"><span class="ctx-icon">⊟</span> Delete table</div>
+  <div class="ctx-item" onclick="addTableRow()"><span class="ctx-icon">+</span> Add table row</div>
+</div>
 
-            let finalHTML = '';
+<!-- HELP MODAL -->
+<div id="modal">
+  <div class="modal-card">
+    <h2>Noah-Doc2HTML — Quick Reference</h2>
+    <p>A live two-column editor. Left: rich document editing. Right: raw HTML source + live preview.</p>
+    <ul>
+      <li><strong>Formatting:</strong> use the toolbar, or keyboard shortcuts below.</li>
+      <li><strong>Paste:</strong> paste Word / Excel HTML and it renders correctly. Right-click → Paste or Ctrl+V.</li>
+      <li><strong>Copy HTML:</strong> copies the full HTML source to clipboard. <code>Ctrl+Shift+C</code></li>
+      <li><strong>Copy text:</strong> copies plain text content from the document.</li>
+      <li><strong>Export:</strong> downloads a standalone <code>index.html</code> file. <code>Ctrl+S</code></li>
+      <li><strong>Change log:</strong> click the ⏱ icon to see a timestamped history of all edits.</li>
+      <li><strong>Format:</strong> auto-indents and cleans up the HTML source.</li>
+      <li><strong>Right-click</strong> in the editor for a context menu with all paste/copy options.</li>
+    </ul>
+    <p><strong>Keyboard shortcuts:</strong> Ctrl+B Bold, Ctrl+I Italic, Ctrl+U Underline, Ctrl+Z Undo, Ctrl+Y Redo</p>
+    <div class="modal-actions">
+      <button class="btn green" onclick="closeModal()">Got it</button>
+    </div>
+  </div>
+</div>
 
-            if (includeDoctype) {
-                finalHTML += '<!DOCTYPE html>\n';
-            }
-            finalHTML += '<html lang="en">\n<head>\n';
-            if (includeMeta) {
-                finalHTML += `${indent}<meta charset="UTF-8">\n`;
-                finalHTML += `${indent}<meta name="viewport" content="width=device-width, initial-scale=1.0">\n`;
-            }
-            finalHTML += `${indent}<title>Converted Document</title>\n`;
-            
-            if (style === 'semantic') {
-                finalHTML += `${indent}<script src="https://cdn.tailwindcss.com"><\/script>\n`;
-            }
-            
-            finalHTML += `</head>\n<body class="${style === 'semantic' ? 'font-sans p-8 max-w-4xl mx-auto' : ''}">\n`;
-            
-            // Simple indentation for body content
-            const indentedContent = content.split('\n').map(line => line ? indent + line : '').join('\n');
-            finalHTML += `${indent}${indentedContent}\n`;
-            
-            finalHTML += `</body>\n</html>`;
+<script>
+/* ── STATE ───────────────────────────────────────── */
+const docPage   = document.getElementById('doc-page');
+const htmlEd    = document.getElementById('html-editor');
+const preFrame  = document.getElementById('preview-frame');
+const preEmpty  = document.getElementById('preview-empty');
+const lineNums  = document.getElementById('line-nums');
+const logList   = document.getElementById('changelog-list');
 
-            // Update Code View
-            htmlOutput.value = finalHTML;
-            charCount.textContent = `${finalHTML.length} characters`;
+let syncing = false;
+let previewDirty = false;
+let rightTab = 'html';
+let changeLog = [];
+let debounceTimer = null;
 
-            // Update Preview Iframe
-            const iframeDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
-            iframeDoc.open();
-            iframeDoc.write(finalHTML);
-            iframeDoc.close();
-        }
+/* ── INIT ────────────────────────────────────────── */
+function init() {
+  loadSample();
+  updateAll('init');
+}
 
-        // 4. Tab Switching
-        function switchTab(tabName) {
-            document.getElementById('view-code').classList.add('hidden');
-            document.getElementById('view-preview').classList.add('hidden');
-            document.getElementById('tab-code').classList.remove('tab-active');
-            document.getElementById('tab-preview').classList.remove('tab-active');
-            
-            document.getElementById('view-' + tabName).classList.remove('hidden');
-            document.getElementById('tab-' + tabName).classList.add('tab-active');
-        }
+function loadSample() {
+  docPage.innerHTML = `
+    <h1>Meeting Notes</h1>
+    <p>Welcome to <strong>Noah-Doc2HTML</strong>. This is a live two-column editor — anything you type here immediately updates the HTML source on the right.</p>
+    <h2>How it works</h2>
+    <ul>
+      <li>Type or paste content in this panel</li>
+      <li>The HTML source updates <em>live</em> on the right</li>
+      <li>Switch to <strong>Preview</strong> tab to see the rendered output</li>
+      <li>Use <strong>Copy HTML</strong> or <strong>Export</strong> to save your work</li>
+    </ul>
+    <h2>Agenda</h2>
+    <table>
+      <thead><tr><th>Item</th><th>Owner</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Design review</td><td>Alice</td><td>✅ Done</td></tr>
+        <tr><td>API integration</td><td>Bob</td><td>🔄 In progress</td></tr>
+        <tr><td>QA testing</td><td>Carol</td><td>⏳ Pending</td></tr>
+      </tbody>
+    </table>
+    <blockquote>Right-click anywhere for copy/paste options. Use the toolbar above for formatting.</blockquote>
+  `;
+}
 
-        // 5. Utility Functions
-        function clearAll() {
-            if(confirm('Are you sure you want to clear the editor?')) {
-                docEditor.innerHTML = '';
-                updateLivePreview();
-                docEditor.focus();
-            }
-        }
+/* ── SYNC: doc → html ─────────────────────────────── */
+function docToHTML(logEntry) {
+  if (syncing) return;
+  syncing = true;
+  const html = docPage.innerHTML;
+  htmlEd.value = html;
+  updateLineNums();
+  updateCounts();
+  schedulePreview();
+  if (logEntry) addLog(logEntry.type, logEntry.msg);
+  syncing = false;
+}
 
-        function copyHTML() {
-            htmlOutput.select();
-            document.execCommand('copy');
-            
-            const btn = event.target.closest('button');
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i>Copied!';
-            setTimeout(() => {
-                btn.innerHTML = originalHTML;
-            }, 2000);
-        }
+/* ── SYNC: html → doc ─────────────────────────────── */
+function htmlToDoc() {
+  if (syncing) return;
+  syncing = true;
+  docPage.innerHTML = htmlEd.value;
+  normalizeDoc();
+  schedulePreview();
+  syncing = false;
+}
 
-        function downloadHTML() {
-            const blob = new Blob([htmlOutput.value], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'document.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
+function onHTMLInput() {
+  updateLineNums();
+  updateCounts();
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    htmlToDoc();
+    addLog('edit', 'Edited HTML source directly');
+  }, 350);
+}
 
-        // Initialize empty state
-        updateLivePreview();
-    </script>
+/* ── PREVIEW ──────────────────────────────────────── */
+function schedulePreview() {
+  previewDirty = true;
+  if (rightTab === 'preview') renderPreview();
+}
+
+function renderPreview() {
+  if (!previewDirty) return;
+  previewDirty = false;
+  const html = htmlEd.value.trim();
+  preEmpty.style.display = html ? 'none' : 'flex';
+  preFrame.style.display = html ? 'block' : 'none';
+  const doc = preFrame.contentDocument || preFrame.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+    body{margin:0;padding:28px 32px;font-family:system-ui,sans-serif;font-size:14px;line-height:1.7;color:#1a202c;background:#f3f4f6}
+    h1{font-size:2rem;font-weight:700;margin:0 0 16px;line-height:1.2}
+    h2{font-size:1.4rem;font-weight:600;margin:24px 0 10px}
+    h3{font-size:1.1rem;font-weight:600;margin:20px 0 8px}
+    p{margin:0 0 10px}ul,ol{margin:0 0 10px;padding-left:24px}li{margin-bottom:4px}
+    table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+    td,th{border:1px solid #e5e7eb;padding:8px 12px;vertical-align:top}
+    th{background:#f9fafb;font-weight:600;color:#374151}
+    blockquote{border-left:3px solid #6366f1;margin:12px 0;padding:8px 16px;background:#f5f3ff;color:#3730a3;border-radius:0 6px 6px 0}
+    a{color:#4f46e5}
+    hr{border:none;border-top:2px solid #e5e7eb;margin:20px 0}
+    code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:.88em;color:#be185d}
+  </style></head><body>${html}</body></html>`);
+  doc.close();
+  setStatus('Preview updated', 'green');
+}
+
+/* ── TABS ─────────────────────────────────────────── */
+function switchRightTab(tab) {
+  rightTab = tab;
+  document.querySelectorAll('.r-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('html-pane').style.display = tab === 'html' ? 'flex' : 'none';
+  document.getElementById('preview-pane').style.display = tab === 'preview' ? 'flex' : 'none';
+  if (tab === 'preview') renderPreview();
+}
+
+/* ── FORMATTING COMMANDS ──────────────────────────── */
+function cmd(command, value) {
+  docPage.focus();
+  document.execCommand(command, false, value || null);
+  docToHTML({ type: 'format', msg: `Applied: ${command}` });
+}
+
+function insertBlock(tag) {
+  docPage.focus();
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const el = document.createElement(tag);
+  const text = sel.toString();
+  el.textContent = text || (tag === 'blockquote' ? 'Blockquote text…' : tag === 'h1' ? 'Heading 1' : tag === 'h2' ? 'Heading 2' : tag === 'h3' ? 'Heading 3' : 'Paragraph text…');
+  range.deleteContents();
+  range.insertNode(el);
+  // place cursor at end of inserted element
+  const nr = document.createRange();
+  nr.setStartAfter(el);
+  nr.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(nr);
+  docToHTML({ type: 'insert', msg: `Inserted <${tag}>` });
+}
+
+function insertTable(rows, cols) {
+  docPage.focus();
+  let html = '<table><thead><tr>';
+  for (let c = 0; c < cols; c++) html += `<th>Header ${c+1}</th>`;
+  html += '</tr></thead><tbody>';
+  for (let r = 0; r < rows; r++) {
+    html += '<tr>';
+    for (let c = 0; c < cols; c++) html += '<td>&nbsp;</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  insertHTMLAtCursor(html);
+  addLog('insert', `Inserted ${rows}×${cols} table`);
+}
+
+function insertHR() {
+  insertHTMLAtCursor('<hr>');
+  addLog('insert', 'Inserted horizontal rule');
+}
+
+function insertHTMLAtCursor(html) {
+  docPage.focus();
+  const sel = window.getSelection();
+  if (!sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  const tpl = document.createElement('div');
+  tpl.innerHTML = html;
+  const frag = document.createDocumentFragment();
+  while (tpl.firstChild) frag.appendChild(tpl.firstChild);
+  range.insertNode(frag);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  docToHTML(null);
+}
+
+function removeCurrentTable() {
+  let node = window.getSelection()?.anchorNode;
+  while (node && node !== docPage) {
+    if (node.nodeName === 'TABLE') { node.remove(); docToHTML({ type: 'edit', msg: 'Deleted table' }); return; }
+    node = node.parentNode;
+  }
+}
+
+function addTableRow() {
+  let node = window.getSelection()?.anchorNode;
+  while (node && node !== docPage) {
+    if (node.nodeName === 'TABLE') {
+      const tbody = node.querySelector('tbody') || node;
+      const cols = tbody.rows[0]?.cells.length || 2;
+      const row = tbody.insertRow();
+      for (let i = 0; i < cols; i++) { const td = row.insertCell(); td.innerHTML = '&nbsp;'; }
+      docToHTML({ type: 'insert', msg: 'Added table row' });
+      return;
+    }
+    node = node.parentNode;
+  }
+}
+
+/* ── COPY / PASTE ─────────────────────────────────── */
+function copyHTMLSource() {
+  const html = htmlEd.value || docPage.innerHTML;
+  navigator.clipboard.writeText(html).then(() => {
+    toast('HTML source copied!');
+    addLog('format', 'Copied HTML source to clipboard');
+  }).catch(() => {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = html;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast('HTML source copied!');
+  });
+}
+
+function copyDocText() {
+  const text = docPage.innerText || docPage.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    toast('Plain text copied!');
+    addLog('format', 'Copied plain text to clipboard');
+  }).catch(() => toast('Copy failed — try Ctrl+A then Ctrl+C'));
+}
+
+function copySelectedText() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) { toast('No text selected'); return; }
+  const text = sel.toString();
+  navigator.clipboard.writeText(text).then(() => toast('Selection copied!'));
+}
+
+function cutSelected() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return;
+  copySelectedText();
+  sel.getRangeAt(0).deleteContents();
+  docToHTML({ type: 'edit', msg: 'Cut selection' });
+  hideFloatToolbar();
+}
+
+async function pasteFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text) {
+      docPage.focus();
+      const html = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const paras = html.split(/\n+/).map(t => `<p>${t}</p>`).join('');
+      insertHTMLAtCursor(paras);
+      addLog('paste', `Pasted ${text.length} characters from clipboard`);
+    }
+  } catch {
+    toast('Paste using Ctrl+V — browser clipboard permission needed for button paste');
+  }
+}
+
+/* ── PASTE EVENT (native) ─────────────────────────── */
+docPage.addEventListener('paste', e => {
+  e.preventDefault();
+  const dt = e.clipboardData;
+  const html = dt.getData('text/html');
+  const text = dt.getData('text/plain');
+  if (html) {
+    insertHTMLAtCursor(html);
+    addLog('paste', `Pasted rich HTML (${html.length} chars)`);
+  } else if (text) {
+    const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    insertHTMLAtCursor(safe.split(/\n+/).map(t => `<p>${t}</p>`).join(''));
+    addLog('paste', `Pasted plain text (${text.length} chars)`);
+  }
+});
+
+/* ── EXPORT ───────────────────────────────────────── */
+function insertSample() {
+  loadSample();
+  docToHTML({ type: 'insert', msg: 'Loaded sample document' });
+  setStatus('Sample loaded', 'green');
+}
+
+function formatHTMLSource() {
+  let v = htmlEd.value;
+  // basic pretty-print
+  let indent = 0;
+  const INDENT = '  ';
+  const VOID = /^(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/i;
+  v = v.replace(/>\s*</g, '>\n<').trim();
+  const lines = v.split('\n');
+  const result = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    const isClose = /^<\//.test(line);
+    const isSelfClose = /\/>$/.test(line) || VOID.test((line.match(/<([a-z]+)/i)||[])[1]||'');
+    const isOpen = /^<[^/!?]/.test(line) && !isSelfClose;
+    if (isClose) indent = Math.max(0, indent - 1);
+    result.push(INDENT.repeat(indent) + line);
+    if (isOpen && !isClose) indent++;
+  }
+  htmlEd.value = result.join('\n');
+  updateLineNums();
+  updateCounts();
+  htmlToDoc();
+  addLog('format', 'Formatted HTML source');
+  toast('HTML formatted');
+}
+
+function clearAll() {
+  docPage.innerHTML = '';
+  htmlEd.value = '';
+  updateLineNums();
+  updateCounts();
+  schedulePreview();
+  addLog('clear', 'Cleared all content');
+  setStatus('Cleared', 'yellow');
+}
+
+function exportHTML() {
+  const html = htmlEd.value || docPage.innerHTML;
+  const blob = new Blob([`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Export</title>
+<style>
+body{margin:0;padding:32px;font-family:system-ui,sans-serif;font-size:14px;line-height:1.7;color:#1a202c;background:#f3f4f6}
+h1{font-size:2rem;font-weight:700;margin:0 0 16px}h2{font-size:1.4rem;font-weight:600;margin:24px 0 10px}
+h3{font-size:1.1rem;font-weight:600;margin:20px 0 8px}p{margin:0 0 10px}
+ul,ol{margin:0 0 10px;padding-left:24px}li{margin-bottom:4px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+td,th{border:1px solid #e5e7eb;padding:8px 12px;vertical-align:top}
+th{background:#f9fafb;font-weight:600}
+blockquote{border-left:3px solid #6366f1;margin:12px 0;padding:8px 16px;background:#f5f3ff;color:#3730a3;border-radius:0 6px 6px 0}
+hr{border:none;border-top:2px solid #e5e7eb;margin:20px 0}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace;font-size:.88em;color:#be185d}
+</style>
+</head>
+<body>${html}</body></html>`], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'document.html'; a.click();
+  URL.revokeObjectURL(url);
+  addLog('format', 'Exported document.html');
+  toast('Exported document.html');
+}
+
+/* ── NORMALIZE ────────────────────────────────────── */
+function normalizeDoc() {
+  docPage.querySelectorAll('table').forEach(t => {
+    t.style.borderCollapse = 'collapse';
+    t.style.width = '100%';
+    t.querySelectorAll('td,th').forEach(c => {
+      if (!c.style.border) c.style.border = '1px solid #d1d5db';
+      if (!c.style.padding) c.style.padding = '7px 10px';
+    });
+  });
+}
+
+/* ── COUNTS & LINE NUMS ───────────────────────────── */
+function updateLineNums() {
+  const n = htmlEd.value ? htmlEd.value.split('\n').length : 1;
+  lineNums.textContent = Array.from({ length: n }, (_, i) => i + 1).join('\n');
+  document.getElementById('sb-lines').textContent = `${n} line${n === 1 ? '' : 's'}`;
+}
+
+function updateCounts() {
+  const chars = htmlEd.value.length;
+  document.getElementById('char-count').textContent = `${chars} chars`;
+  const words = docPage.innerText.trim().split(/\s+/).filter(Boolean).length;
+  document.getElementById('word-count').textContent = `${words} word${words !== 1 ? 's' : ''}`;
+}
+
+function updateAll(type) {
+  normalizeDoc();
+  docToHTML(type === 'init' ? null : { type: 'edit', msg: 'Content changed' });
+}
+
+/* ── STATUS ───────────────────────────────────────── */
+function setStatus(msg, color) {
+  document.getElementById('status-text').textContent = msg;
+  const dot = document.getElementById('status-dot');
+  dot.className = 'sb-dot' + (color === 'yellow' ? ' yellow' : '');
+  setTimeout(() => { document.getElementById('status-text').textContent = 'Ready'; dot.className = 'sb-dot'; }, 2200);
+}
+
+/* ── CHANGE LOG ───────────────────────────────────── */
+function addLog(type, msg) {
+  const now = new Date();
+  const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  changeLog.unshift({ type, msg, time });
+  if (changeLog.length > 80) changeLog.pop();
+  renderLog();
+}
+
+function renderLog() {
+  if (!document.getElementById('changelog-wrap').classList.contains('open')) return;
+  const badge = { edit:'badge-edit', paste:'badge-paste', format:'badge-format', insert:'badge-insert', clear:'badge-clear' };
+  logList.innerHTML = changeLog.length === 0
+    ? '<div style="font-size:11px;color:var(--fg3);padding:8px 4px">No changes yet.</div>'
+    : changeLog.map(e => `
+      <div class="change-item">
+        <span class="change-badge ${badge[e.type] || 'badge-edit'}">${e.type}</span>
+        <span class="change-text">${e.msg}</span>
+        <span class="change-time">${e.time}</span>
+      </div>`).join('');
+}
+
+function toggleChangelog() {
+  const wrap = document.getElementById('changelog-wrap');
+  wrap.classList.toggle('open');
+  if (wrap.classList.contains('open')) renderLog();
+}
+
+function clearLog() {
+  changeLog = [];
+  renderLog();
+}
+
+/* ── FLOATING TOOLBAR ─────────────────────────────── */
+function showFloatToolbar(x, y) {
+  const tb = document.getElementById('float-toolbar');
+  tb.style.display = 'flex';
+  const vw = window.innerWidth, vh = window.innerHeight;
+  tb.style.left = Math.min(x, vw - 280) + 'px';
+  tb.style.top = (y - 44) + 'px';
+}
+
+function hideFloatToolbar() {
+  document.getElementById('float-toolbar').style.display = 'none';
+}
+
+docPage.addEventListener('mouseup', e => {
+  setTimeout(() => {
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) showFloatToolbar(e.clientX, e.clientY);
+    else hideFloatToolbar();
+  }, 10);
+});
+docPage.addEventListener('keyup', () => {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) hideFloatToolbar();
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#float-toolbar') && !e.target.closest('#doc-page')) hideFloatToolbar();
+});
+
+/* ── CONTEXT MENU ─────────────────────────────────── */
+const ctxMenu = document.getElementById('ctx-menu');
+
+docPage.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  ctxMenu.style.display = 'block';
+  const vw = window.innerWidth, vh = window.innerHeight;
+  ctxMenu.style.left = Math.min(e.clientX, vw - 190) + 'px';
+  ctxMenu.style.top = Math.min(e.clientY, vh - 250) + 'px';
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#ctx-menu')) ctxMenu.style.display = 'none';
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') ctxMenu.style.display = 'none'; });
+
+/* ── KEYBOARD SHORTCUTS ───────────────────────────── */
+window.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key === 's') { e.preventDefault(); exportHTML(); }
+  if (mod && e.shiftKey && e.key.toLowerCase() === 'c') { e.preventDefault(); copyHTMLSource(); }
+  if (mod && e.key === 'z' && !e.shiftKey) setStatus('Undo', '');
+  if (mod && e.key === 'y') setStatus('Redo', '');
+});
+
+/* ── DOCUMENT INPUT HANDLER ───────────────────────── */
+docPage.addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    docToHTML({ type: 'edit', msg: `Edited document (${docPage.innerText.trim().length} chars)` });
+    setStatus('Saved', 'green');
+  }, 300);
+});
+
+/* ── DROP SUPPORT ─────────────────────────────────── */
+docPage.addEventListener('drop', e => {
+  e.preventDefault();
+  const html = e.dataTransfer.getData('text/html');
+  const text = e.dataTransfer.getData('text/plain');
+  if (html) { insertHTMLAtCursor(html); addLog('paste', `Dropped HTML (${html.length} chars)`); }
+  else if (text) { insertHTMLAtCursor(text.split(/\n+/).map(t => `<p>${t}</p>`).join('')); addLog('paste', `Dropped text`); }
+});
+docPage.addEventListener('dragover', e => e.preventDefault());
+
+/* ── TOAST ────────────────────────────────────────── */
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+}
+
+/* ── MODAL ────────────────────────────────────────── */
+function openModal() { document.getElementById('modal').classList.add('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
+
+/* ── START ────────────────────────────────────────── */
+init();
+</script>
 </body>
 </html>
